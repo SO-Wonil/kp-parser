@@ -9,3 +9,13 @@ output/*
 test/*
 
 .DS_Store
+
+*.hpf
+*.xml
+*.json
+*.zip
+*.html
+*.txt
+*.pdf
+*.docx
+*.doc
