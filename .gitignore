@@ -19,3 +19,11 @@ test/*
 *.pdf
 *.docx
 *.doc
+
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.wmf
+*.emf
