@@ -208,8 +208,12 @@ def parse_section0_xml(style_info):
     return result
 
 def sanitize_filename(name):
-    """윈도우나 리눅스에서 파일/폴더 이름에 쓸 수 없는 문자 제거"""
-    return re.sub(r'[\\/*?:"<>|]', "_", name).strip()
+    """윈도우나 리눅스에서 파일/폴더 이름에 쓸 수 없는 문자 제거 및 기호 주변 공백 제거"""
+    # 먼저 파일명에 사용할 수 없는 문자를 언더스코어로 변경
+    name = re.sub(r'[\\/*?:"<>|]', "_", name)
+    # 문자 사이의 하이픈과 가운뎃점 주변 공백 제거 (기호는 유지)
+    name = re.sub(r'(\S)\s*([-·])\s*(\S)', r'\1\2\3', name)
+    return name.strip()
 
 def save_pages_by_title(pages, output_base='output_pages'):
     """
