@@ -50,9 +50,6 @@ def get_style_info():
 
 
 # section0.xml 파싱
-def is_displayable_image(media_type):
-    return media_type in ('image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/svg+xml')
-
 def process_image_in_paragraph(run, image_info, folder_path):
     pic_tag = run.find('hp:pic')
     if not pic_tag:
@@ -122,6 +119,45 @@ def process_image_in_paragraph(run, image_info, folder_path):
 def extract_text(hp_p_tag):
     return ' '.join(t.text.strip() for t in hp_p_tag.find_all('hp:t') if t.text.strip())
 
+def convert_to_katex(equation):
+    """한글 문서 수식 형식을 KaTeX 형식으로 변환"""
+    # 기본 변환 규칙
+    replacements = {
+        'TIMES': '\\times',
+        'rm': '\\mathrm',
+        'it': '\\textit',
+        'over': '\\frac',
+        ' ': ''  # 불필요한 공백 제거
+    }
+    
+    # 중괄호 처리
+    equation = re.sub(r'\{([^{}]+)\}', r'{\1}', equation)
+    
+    # 기본 변환 적용
+    for old, new in replacements.items():
+        equation = equation.replace(old, new)
+    
+    return equation
+
+def process_equation_in_paragraph(run):
+    """수식 태그를 찾아서 Lexical Editor 형식의 수식 노드로 변환"""
+    equation_tag = run.find('hp:equation')
+    if not equation_tag:
+        return None
+
+    script_tag = equation_tag.find('hp:script')
+    if not script_tag:
+        return None
+
+    # KaTeX 형식으로 변환
+    katex_equation = convert_to_katex(script_tag.text)
+
+    return {
+        'type': 'equation',
+        'version': 1,
+        'equation': katex_equation
+    }
+
 def build_paragraph(hp_p_tag, style_info, folder_path):
     paragraph = {
         'type': 'paragraph',
@@ -138,7 +174,6 @@ def build_paragraph(hp_p_tag, style_info, folder_path):
         char_pr_id = run.get('charPrIDRef')
         style = style_info.get(f'charPr-{char_pr_id}', {}) if char_pr_id else {}
 
-        
         format_flag = 0
         if style.get('bold'):
             format_flag = 1
@@ -150,23 +185,29 @@ def build_paragraph(hp_p_tag, style_info, folder_path):
         else:
             format_flag = style.get('format', 0)  
         
-         # 이미지 처리
+        # 이미지 처리
         pic_tag = run.find('hp:pic')
         if pic_tag:
             image_node = process_image_in_paragraph(run, image_info, folder_path)
             if image_node:
                 paragraph['children'].append(image_node)
 
+        # 수식 처리
+        equation_node = process_equation_in_paragraph(run)
+        if equation_node:
+            paragraph['children'].append(equation_node)
+
         for t in run.find_all('hp:t'):
-            paragraph['children'].append({
-                'detail': 0,
-                'format': format_flag,
-                'mode': 'normal',
-                'style': '',
-                'text': t.text,
-                'type': 'text',
-                'version': 1
-            })
+            if t.text.strip():  # 빈 텍스트는 건너뛰기
+                paragraph['children'].append({
+                    'detail': 0,
+                    'format': format_flag,
+                    'mode': 'normal',
+                    'style': '',
+                    'text': t.text,
+                    'type': 'text',
+                    'version': 1
+                })
 
     return paragraph
 
@@ -205,29 +246,11 @@ def parse_section0_xml(style_info):
 
         i += 1
 
-    return result
-
-def sanitize_filename(name):
-    """윈도우나 리눅스에서 파일/폴더 이름에 쓸 수 없는 문자 제거 및 기호 주변 공백 제거"""
-    # 먼저 파일명에 사용할 수 없는 문자를 언더스코어로 변경
-    name = re.sub(r'[\\/*?:"<>|]', "_", name)
-    # 문자 사이의 하이픈과 가운뎃점 주변 공백 제거 (기호는 유지)
-    name = re.sub(r'(\S)\s*([-·])\s*(\S)', r'\1\2\3', name)
-    return name.strip()
-
-def save_pages_by_title(pages, output_base='output_pages'):
-    """
-    페이지 리스트를 타이틀 기준으로 폴더로 나누어 저장한다.
-    각 페이지의 content는 root.children 아래에 들어간다.
-    """
-    os.makedirs(output_base, exist_ok=True)
-
-    print(len(pages))
-    for page in pages:
+    # 각 의약품별로 JSON 파일 저장
+    for page in result:
         title = sanitize_filename(page.get('title', 'untitled'))
-        folder_path = os.path.join(output_base, title)
-        os.makedirs(folder_path, exist_ok=True)
-
+        folder_path = os.path.join('output_pages', title)
+        
         output_data = {
             "root": {
                 "direction": "ltr",
@@ -241,16 +264,21 @@ def save_pages_by_title(pages, output_base='output_pages'):
 
         json_path = os.path.join(folder_path, 'data.json')
         with open(json_path, 'w', encoding='utf-8') as f:
-            json.dump(output_data, f, ensure_ascii=False, indent=2)                
-                
-    
-    
-    
+            json.dump(output_data, f, ensure_ascii=False, indent=2)
+
+    return result
+
+def sanitize_filename(name):
+    """윈도우나 리눅스에서 파일/폴더 이름에 쓸 수 없는 문자 제거 및 기호 주변 공백 제거"""
+    # 먼저 파일명에 사용할 수 없는 문자를 언더스코어로 변경
+    name = re.sub(r'[\\/*?:"<>|]', "_", name)
+    # 문자 사이의 하이픈과 가운뎃점 주변 공백 제거 (기호는 유지)
+    name = re.sub(r'(\S)\s*([-·])\s*(\S)', r'\1\2\3', name)
+    return name.strip()
 
 image_info = get_image_info()
 style_info = get_style_info()
 text_info = parse_section0_xml(style_info)
-save_pages_by_title(text_info)
 
 
 
