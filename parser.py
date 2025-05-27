@@ -221,24 +221,32 @@ def parse_section0_xml(style_info):
     i = 0
     order = 1  # 의약품 순서를 추적하기 위한 변수
     
+    
     while i < len(hp_p_tags):
+        print(order)
         p_tag = hp_p_tags[i]
         if p_tag.get('styleIDRef') in ('1', '2') and any(seg.get("textheight") == "1100" for seg in p_tag.find_all("hp:lineseg")):
-            # 새 의약품 시작
-            title = extract_text(p_tag)
-            subtitle = extract_text(hp_p_tags[i + 1]) if i + 1 < len(hp_p_tags) else ""
+            first_text = extract_text(p_tag)
+            second_text = extract_text(hp_p_tags[i + 1]) if i + 1 < len(hp_p_tags) else ""
+            
+            def is_korean(text):
+                return any('\uAC00' <= char <= '\uD7A3' for char in text)
+            
+            if is_korean(first_text):
+                title = first_text
+                subtitle = second_text
+            else:
+                title = second_text
+                subtitle = first_text
+            
             folder_path = os.path.join('output_pages', sanitize_filename(title))
-
             os.makedirs(folder_path, exist_ok=True)
             
-            # 메타데이터 저장
             metadata = {
                 'title': title,
                 'subtitle': subtitle,
                 'order': order
             }
-            
-            # metadata.json 파일로 저장
             metadata_path = os.path.join(folder_path, 'metadata.json')
             with open(metadata_path, 'w', encoding='utf-8') as f:
                 json.dump(metadata, f, ensure_ascii=False, indent=2)
@@ -246,16 +254,17 @@ def parse_section0_xml(style_info):
             current_page = {
                 'title': title,
                 'subtitle': subtitle,
-                'content': []
+                'content': [],
+                'folder_path': folder_path  # 폴더 경로 저장
             }
             result.append(current_page)
-            order += 1  # 다음 의약품을 위해 순서 증가
-            i += 2  # title + subtitle 건너뛰기
+            order += 1
+            i += 2
             continue
 
         if current_page:
-            para = build_paragraph(p_tag, style_info, folder_path)
-            if para['children']:  # 내용이 있으면 추가
+            para = build_paragraph(p_tag, style_info, current_page['folder_path'])
+            if para['children']:
                 current_page['content'].append(para)
 
         i += 1
@@ -263,8 +272,7 @@ def parse_section0_xml(style_info):
     # 각 의약품별로 JSON 파일 저장
     for page in result:
         title = sanitize_filename(page.get('title', 'untitled'))
-        folder_path = os.path.join('output_pages', title)
-        
+        folder_path = page.get('folder_path', os.path.join('output_pages', title))
         output_data = {
             "root": {
                 "direction": "ltr",
@@ -275,7 +283,6 @@ def parse_section0_xml(style_info):
                 "children": page.get('content', [])
             }
         }
-
         json_path = os.path.join(folder_path, 'data.json')
         with open(json_path, 'w', encoding='utf-8') as f:
             json.dump(output_data, f, ensure_ascii=False, indent=2)
