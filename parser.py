@@ -219,6 +219,7 @@ def parse_section0_xml(style_info):
     result = []
     current_page = None
     i = 0
+    order = 1  # 의약품 순서를 추적하기 위한 변수
     
     while i < len(hp_p_tags):
         p_tag = hp_p_tags[i]
@@ -230,12 +231,25 @@ def parse_section0_xml(style_info):
 
             os.makedirs(folder_path, exist_ok=True)
             
+            # 메타데이터 저장
+            metadata = {
+                'title': title,
+                'subtitle': subtitle,
+                'order': order
+            }
+            
+            # metadata.json 파일로 저장
+            metadata_path = os.path.join(folder_path, 'metadata.json')
+            with open(metadata_path, 'w', encoding='utf-8') as f:
+                json.dump(metadata, f, ensure_ascii=False, indent=2)
+            
             current_page = {
                 'title': title,
                 'subtitle': subtitle,
                 'content': []
             }
             result.append(current_page)
+            order += 1  # 다음 의약품을 위해 순서 증가
             i += 2  # title + subtitle 건너뛰기
             continue
 
