@@ -1,0 +1,53 @@
+# 빌드 시스템 설정
+# hatchling: 최신 Python 패키징 도구
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# 프로젝트 기본 정보
+[project]
+name = "kp_parser"
+version = "0.1.0"
+description = "한글 문서(.hwpx) 파싱 라이브러리"
+requires-python = ">=3.8"
+dependencies = [
+    "lxml",  # XML 처리 라이브러리
+]
+
+# 개발 의존성 설정
+[project.optional-dependencies]
+dev = [
+    "pytest==8.0.0",      # 테스트 프레임워크
+    "pytest-cov==4.1.0",  # 테스트 커버리지 측정
+    "black==24.1.1",      # 코드 포맷터
+    "isort==5.13.2",      # import 정렬
+    "mypy==1.8.0",        # 타입 체크
+]
+
+# 명령어 alias 설정
+[project.scripts]
+test = "pytest:main"    # pytest를 test로 실행
+format = "black:main"   # black을 format으로 실행
+
+# pytest 설정
+[tool.pytest.ini_options]
+testpaths = ["tests"]           # 테스트 디렉토리
+python_files = "test_*.py"      # 테스트 파일 패턴
+python_classes = "Test*"        # 테스트 클래스 패턴
+python_functions = "test_*"     # 테스트 함수 패턴
+addopts = "-v --cov=src/kp_parser --cov-report=term-missing"  # 테스트 옵션
+
+# black 설정
+[tool.black]
+line-length = 88                # 한 줄 최대 길이
+target-version = ["py38"]       # Python 3.8 호환
+
+# isort 설정
+[tool.isort]
+profile = "black"               # black과 호환되는 설정
+line_length = 88                # black과 동일한 줄 길이
+
+# mypy 설정
+[tool.mypy]
+python_version = "3.8"          # Python 3.8 타입 체크
+strict = true                   # 엄격한 타입 체크 
