@@ -96,7 +96,3 @@ kp_parser/
 ├── pyproject.toml
 └── README.md
 ```
-
-## 라이선스
-
-MIT License
