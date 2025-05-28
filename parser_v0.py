@@ -298,8 +298,16 @@ def sanitize_filename(name):
 
 
 image_info = get_image_info()
+print("이미지 정보:")
+print(image_info)
+
 style_info = get_style_info()
+print("스타일 정보:")
+print(style_info)
+
 text_info = parse_section0_xml(style_info)
+print("텍스트 정보:")
+print(text_info)
 
 
 # ret = {
