@@ -5,7 +5,7 @@ from typing import Dict, Union
 
 
 def extract_hwpx_content(
-    hwpx_path: str, extract_dir: str = "temp", debug: bool = False
+    hwpx_path: str, extract_dir: str = "data/output/tmp", debug: bool = False
 ) -> Dict[str, Union[ElementTree.Element, bytes]]:
     """
     .hwpx 파일의 내용을 추출합니다.

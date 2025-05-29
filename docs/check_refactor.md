@@ -3,8 +3,8 @@
 [x] 디버그 모드와 일반 모드 분리
 [x] 기본 테스트 코드 작성
 XML 파싱 기능
-[ ] get_image_info 함수 리팩토링
-[ ] get_style_info 함수 리팩토링
+[x] get_image_info 함수 리팩토링
+[x] get_style_info 함수 리팩토링
 [ ] parse_section0_xml 함수 리팩토링
 텍스트 처리 기능
 [ ] extract_text 함수 리팩토링
