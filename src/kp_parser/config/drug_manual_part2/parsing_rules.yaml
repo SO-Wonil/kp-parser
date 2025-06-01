@@ -1,0 +1,120 @@
+# 의약품각조 2부 문서 파싱 규칙
+
+# content.hpf 파일 파싱 규칙
+content_hpf:
+  # 네임스페이스 설정
+  namespaces:
+    opf: "http://www.idpf.org/2007/opf/"
+
+  # 이미지 정보 추출 규칙
+  image_extraction:
+    # 이미지 정보가 있는 manifest 태그
+    manifest:
+      tag: "opf:manifest"
+      path: ".//opf:manifest"
+
+    # 개별 이미지 항목
+    item:
+      tag: "opf:item"
+      path: ".//opf:item"
+      # 이미지 파일인지 확인하는 조건
+      conditions:
+        media_type: "image/"
+      # 추출할 속성
+      attributes:
+        - "id"
+        - "href"
+        - "media-type"
+      # 출력 형식
+      output_format:
+        type: "image_info"
+        version: 1
+        fields:
+          id: "id"
+          path: "href"
+          mime_type: "media-type"
+
+# header.xml 파일 파싱 규칙
+header_xml:
+  # 네임스페이스 설정
+  namespaces:
+    hh: "http://www.hancom.co.kr/hwpml/2011/head"
+
+  # 스타일 정보 추출 규칙
+  style_extraction:
+    # charPr 요소 파싱 규칙
+    charPr:
+      tag: "hh:charPr"
+      path: ".//hh:charPr"
+      # 스타일 조건
+      conditions:
+        bold: ".//hh:bold"
+        italic: ".//hh:italic"
+        underline: ".//hh:underline"
+        subscript: ".//hh:subscript"
+        superscript: ".//hh:superscript"
+
+    # style 요소 파싱 규칙
+    style:
+      tag: "hh:style"
+      path: ".//hh:style"
+      # 추출할 속성
+      attributes:
+        type: "type"
+        name: "name"
+        engName: "engName"
+        paraPrIDRef: "paraPrIDRef"
+        charPrIDRef: "charPrIDRef"
+        nextStyleIDRef: "nextStyleIDRef"
+        langID: "langID"
+        lockForm: "lockForm"
+
+# section{n}.xml 파일 파싱 규칙
+section_xml:
+  # 네임스페이스 설정
+  namespaces:
+    hp: "http://www.hancom.co.kr/hwpml/2011/paragraph"
+    hc: "http://www.hancom.co.kr/hwpml/2011/core"
+
+  # 메타데이터 추출 규칙
+  metadata_extraction:
+    # 챕터 제목
+    chapter: "의약품각조 제2부"
+    # section 추출 규칙
+    section:
+      # section 문단 조건
+      conditions:
+        styleIDRef: "55" # styleIDRef가 55인 문단
+      # section 텍스트 추출
+      text:
+        tag: "hp:t"
+        path: ".//hp:t"
+      # 출력 형식
+      output_format:
+        type: "section"
+        version: 1
+        fields:
+          title: "text"
+
+    # 제목 추출 규칙
+    title:
+      # 제목 문단 조건
+      conditions:
+        height: "1100" # 문단 높이가 1100인 경우
+        # styleIDRef: "4" # styleIDRef가 4인 문단
+      # 제목 텍스트 추출
+      text:
+        tag: "hp:t"
+        path: ".//hp:t"
+      # 언어 구분 조건
+      language_conditions:
+        korean: "[가-힣]" # 한글 포함 여부
+        english: "^[A-Za-z\\s]+$" # 영문만 포함 여부
+      # 출력 형식
+      output_format:
+        type: "title"
+        version: 1
+        fields:
+          title: "text" # 한글인 경우
+          subtitle: "text" # 영문인 경우
+

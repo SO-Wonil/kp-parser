@@ -28,7 +28,7 @@ dev = [
 [project.scripts]
 test = "pytest:main"    # pytest를 test로 실행
 format = "black:main"   # black을 format으로 실행
-parse = "kp_parser.scripts.parse_hwpx:main"  # hwpx 파싱 스크립트 실행
+parse-hwpx = "kp_parser.main:main"  # 메인 스크립트 등록
 
 # pytest 설정
 [tool.pytest.ini_options]
