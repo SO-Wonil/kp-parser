@@ -20,46 +20,75 @@ pip install -e ".[dev]"
 ### 기본 사용법
 
 ```python
-from kp_parser.utils import extract_hwpx_content
+from kp_parser import ContentHpfParser, HeaderXmlParser, SectionXmlParser
+from kp_parser.utils.file_utils import extract_hwpx_content
 
-# 일반 모드 (메모리에 로딩)
-content_map = extract_hwpx_content("example.hwpx", debug=False)
-# content_map은 {파일명: ElementTree.Element 또는 bytes} 형태
+# HWPX 파일 압축 해제 및 내용 로드
+content_map = extract_hwpx_content(
+    "example.hwpx",
+    extract_dir="data/tmp",
+    debug=False
+)
 
-# 디버그 모드 (파일로 추출)
-extract_dir = extract_hwpx_content("example.hwpx", extract_dir="output", debug=True)
-# extract_dir은 추출된 디렉토리 경로
+# header.xml 파싱
+header_parser = HeaderXmlParser()
+header_xml = content_map.get("Contents/header.xml")
+style_info = {}
+if header_xml is not None:
+    style_info = header_parser.parse(header_xml)
+
+# content.hpf 파싱 (이미지 정보)
+content_parser = ContentHpfParser()
+content_hpf = content_map.get("Contents/content.hpf")
+image_info = {}
+if content_hpf is not None:
+    parsed_image_info = content_parser.parse(content_hpf)
+    if isinstance(parsed_image_info, list):
+        image_info = {img["id"]: img for img in parsed_image_info}
+
+# section0.xml 파싱
+section_parser = SectionXmlParser()
+section0_xml = content_map.get("Contents/section0.xml")
+if section0_xml is not None:
+    parsed_data = section_parser.parse(
+        section0_xml,
+        style_info,
+        image_info,
+        output_dir="data/output/result"
+    )
 ```
 
-### 함수 설명
+### 파싱 결과 구조
 
-`extract_hwpx_content(file_path: str, extract_dir: str = "temp", debug: bool = False)`
-
-- `file_path`: .hwpx 파일 경로
-- `extract_dir`: 디버그 모드일 때 압축 해제할 디렉토리
-- `debug`:
-  - `True`: 모든 파일을 디스크에 저장
-  - `False`: Contents/와 BinData/ 디렉토리의 파일만 메모리에 로딩
-
-## 테스트
-
-### 테스트 실행
-
-```bash
-# 전체 테스트 실행
-test
-
-# 특정 테스트 파일 실행
-test tests/unit/test_file_utils.py
-
-# 자세한 출력으로 실행
-test -v
-```
-
-### 테스트 커버리지 확인
-
-```bash
-test --cov=src/kp_parser --cov-report=term-missing
+```json
+{
+  "chapter": "의약품각조 제2부",
+  "section": "제1장",
+  "title": "의약품명",
+  "subtitle": "영문명",
+  "order": 1,
+  "content": [
+    {
+      "type": "paragraph",
+      "version": 1,
+      "direction": "ltr",
+      "format": "",
+      "indent": 0,
+      "textFormat": 0,
+      "textStyle": "",
+      "children": [
+        {
+          "type": "text",
+          "version": 1,
+          "text": "내용",
+          "format": 0,
+          "mode": "normal",
+          "style": ""
+        }
+      ]
+    }
+  ]
+}
 ```
 
 ## 개발 환경 설정
@@ -68,7 +97,7 @@ test --cov=src/kp_parser --cov-report=term-missing
 
 ```bash
 # 코드 포맷팅
-format
+black .
 
 # import 정렬
 isort .
@@ -86,13 +115,17 @@ mypy src/kp_parser
 kp_parser/
 ├── src/
 │   └── kp_parser/
+│       ├── config/
+│       │   └── drug_manual_part2/
+│       │       └── parsing_rules.yaml
 │       ├── core/
-│       │   └── parser.py
+│       │   ├── content_hpf_parser.py
+│       │   ├── header_xml_parser.py
+│       │   └── section_xml_parser.py
 │       └── utils/
+│           ├── config_utils.py
 │           └── file_utils.py
-├── tests/
-│   └── unit/
-│       └── test_file_utils.py
+├── main.py
 ├── pyproject.toml
 └── README.md
 ```
