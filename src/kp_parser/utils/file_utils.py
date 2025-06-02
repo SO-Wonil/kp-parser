@@ -4,6 +4,7 @@ import fnmatch
 import re
 from xml.etree import ElementTree
 from typing import Dict, Union, Optional, List, Tuple
+from kp_parser.utils.logger import logger
 
 
 def extract_hwpx_content(
@@ -24,7 +25,7 @@ def extract_hwpx_content(
     Returns:
         Dict[str, Union[ElementTree.Element, bytes]]: 파일 경로를 키로, XML Element 또는 바이너리 데이터를 값으로 하는 딕셔너리
     """
-    print(f"\n[디버그] {hwpx_path} 파일 압축 해제 시작")
+    logger.info(f"HWPX 파일 압축 해제 시작: {hwpx_path}")
 
     # 메모리에 파일 로딩 (Contents/ + BinData/)
     content_map = {}
@@ -45,7 +46,7 @@ def extract_hwpx_content(
         section_files.sort(key=lambda x: x[0])
         section_files = [f[1] for f in section_files]  # 파일 경로만 추출
 
-        print(f"[디버그] 발견된 section 파일들: {section_files}")
+        logger.debug(f"발견된 section 파일들: {section_files}")
 
         # 모든 파일 처리
         for name in all_files:
@@ -54,7 +55,7 @@ def extract_hwpx_content(
                 if pattern and not fnmatch.fnmatch(name, f"Contents/{pattern}"):
                     continue
 
-                print(f"[디버그] 파일 로딩: {name}")
+                logger.debug(f"파일 로딩 중: {name}")
                 with zip_ref.open(name) as file:
                     raw = file.read()
                     if name.endswith((".xml", ".hpf")):
@@ -62,20 +63,21 @@ def extract_hwpx_content(
                             content_map[name] = ElementTree.fromstring(
                                 raw.decode("utf-8")
                             )
-                            print(f"[디버그] XML 파싱 성공: {name}")
+                            logger.debug(f"XML 파싱 성공: {name}")
                         except Exception as e:
-                            print(f"[!] Failed to parse XML: {name} - {e}")
+                            logger.error(f"XML 파싱 실패: {name} - {e}")
                     else:
                         content_map[name] = raw
-                        print(f"[디버그] 바이너리 데이터 로딩: {name}")
+                        logger.debug(f"바이너리 데이터 로딩 완료: {name}")
 
     # 디버그 모드일 경우 추가로 디스크에 저장
     if debug:
         os.makedirs(extract_dir, exist_ok=True)
         with zipfile.ZipFile(hwpx_path, "r") as zip_ref:
             zip_ref.extractall(extract_dir)
-        print(f"[디버그] 파일이 {extract_dir}에 저장되었습니다.")
+        logger.info(f"파일이 {extract_dir}에 저장되었습니다.")
 
-    print(f"[디버그] 로딩된 파일 수: {len(content_map)}")
-    print(f"[디버그] section 파일 수: {len(section_files)}")
+    logger.info(
+        f"로딩된 파일 수: {len(content_map)}, section 파일 수: {len(section_files)}"
+    )
     return content_map

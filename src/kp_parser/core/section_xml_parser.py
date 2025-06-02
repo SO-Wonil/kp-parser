@@ -5,6 +5,7 @@ import os
 import base64
 
 from kp_parser.utils.config_utils import get_parsing_rule
+from kp_parser.utils.logger import logger
 
 
 class SectionXmlParser:
@@ -73,7 +74,7 @@ class SectionXmlParser:
                 img_tag = child
                 break
         else:
-            print(f"img_tag not found in pic_tag: {pic_tag}")
+            logger.warning(f"이미지 태그를 찾을 수 없습니다: {pic_tag}")
             return None
 
         img_id = img_tag.get("binaryItemIDRef")
@@ -82,25 +83,22 @@ class SectionXmlParser:
 
         image_meta = image_info.get(img_id)
         if not image_meta:
-            print(f"Image meta not found for ID: {img_id}")
+            logger.warning(f"이미지 메타데이터를 찾을 수 없습니다: {img_id}")
             return None
 
         # href 대신 path 사용
         href = image_meta.get("path")
         if not href:
-            print(f"path not found in image_meta: {image_meta}")
+            logger.warning(f"이미지 경로를 찾을 수 없습니다: {image_meta}")
             return None
 
-        print(f"Found href: {href}")
-
         extension = os.path.splitext(href)[-1].lower()
-        print(f"File extension: {extension}")
 
         # 원본 이미지 경로 (BinData 폴더에서 찾기)
         source_path = os.path.join("data/tmp/BinData", os.path.basename(href))
 
         if not os.path.exists(source_path):
-            print(f"이미지 파일을 찾을 수 없습니다: {source_path}")
+            logger.error(f"이미지 파일을 찾을 수 없습니다: {source_path}")
             return None
 
         # 저장 대상 경로 (의약품별 폴더)
@@ -108,12 +106,12 @@ class SectionXmlParser:
 
         with open(source_path, "rb") as img_f:
             image_data = img_f.read()
-            print(f"Read {len(image_data)} bytes from source file")
+            logger.debug(f"이미지 데이터 읽기 완료: {len(image_data)} bytes")
 
         # 파일 저장
         with open(target_path, "wb") as out_f:
             out_f.write(image_data)
-            print(f"Wrote {len(image_data)} bytes to target file")
+            logger.debug(f"이미지 저장 완료: {target_path}")
 
         # base64 인코딩 (표시 가능한 포맷만)
         if extension in [".png", ".jpg", ".jpeg", ".gif", ".bmp"]:
@@ -260,6 +258,8 @@ class SectionXmlParser:
         self.image_info = image_info
         self.output_dir = output_dir
 
+        logger.info("section_xml 파싱 시작")
+
         # XML 파싱 (문자열인 경우에만)
         root = (
             xml_content
@@ -275,6 +275,7 @@ class SectionXmlParser:
         current_content = []
         i = 0
         order = 1  # 의약품 순서
+        total_drugs = 0  # 총 의약품 수
 
         while i < len(paragraphs):
             p = paragraphs[i]
@@ -289,8 +290,10 @@ class SectionXmlParser:
             ):
                 text = self._extract_text(p)
                 if text:
-                    current_section = text
-                    order = 1  # 섹션이 바뀔 때마다 order 초기화
+                    if current_section != text:
+                        logger.info(f"새로운 섹션 시작: {text}")
+                        current_section = text
+                        order = 1  # 섹션이 바뀔 때마다 order 초기화
 
             # 의약품 제목 문단 확인 (textheight가 1100인 경우)
             lineseg = p.find(".//hp:lineseg", self.namespaces)
@@ -298,6 +301,8 @@ class SectionXmlParser:
                 # 이전 메타데이터와 내용이 있으면 저장
                 if current_metadata:
                     result.append({**current_metadata, "content": current_content})
+                    total_drugs += 1
+                    logger.info(f"의약품 파싱 완료: {current_metadata.get('title')}")
 
                 # 새로운 메타데이터와 내용 시작
                 first_text = self._extract_text(p)
@@ -310,24 +315,23 @@ class SectionXmlParser:
                 # 한글/영문 구분하여 제목/부제목 설정
                 if self._is_korean(first_text):
                     current_metadata = {
-                        "chapter": self.rules["metadata_extraction"][
-                            "chapter"
-                        ],  # 챕터 정보 추가
-                        "section": current_section,  # 현재 섹션 포함
+                        "chapter": self.rules["metadata_extraction"]["chapter"],
+                        "section": current_section,
                         "title": first_text,
                         "subtitle": second_text,
                         "order": order,
                     }
                 else:
                     current_metadata = {
-                        "chapter": self.rules["metadata_extraction"][
-                            "chapter"
-                        ],  # 챕터 정보 추가
-                        "section": current_section,  # 현재 섹션 포함
+                        "chapter": self.rules["metadata_extraction"]["chapter"],
+                        "section": current_section,
                         "title": second_text,
                         "subtitle": first_text,
                         "order": order,
                     }
+                logger.info(
+                    f"새로운 의약품 파싱 시작: {current_metadata.get('title')} (순서: {order})"
+                )
                 current_content = []
                 order += 1
                 i += 2
@@ -350,5 +354,8 @@ class SectionXmlParser:
         # 마지막 메타데이터와 내용 추가
         if current_metadata:
             result.append({**current_metadata, "content": current_content})
+            total_drugs += 1
+            logger.info(f"의약품 파싱 완료: {current_metadata.get('title')}")
 
+        logger.info(f"파싱 완료: 총 {total_drugs}개의 의약품 처리됨")
         return result
